@@ -1,0 +1,86 @@
+= Http Requests =
+	1. Import Http Module `import Http`
+	2. Create a option in the Msg for sending the reqest and Revceiving the Data
+		- ex. ` type Msg `
+							`= SendHttpRequest`
+							| `DataReceived (Result Http.Error (List String))`
+									- side note the the Result type called in the above Msg has this structure:
+										- `type Result error value`
+												`= Ok value`
+												`| Err error`
+										- Hence the DataReveived is going to return a Http.Error or a List of Strings
+										- Obiously the return value can varry depending on 
+							
+				- The SendHttpRequest (in my version) is going to call the Http.get 
+				- Keeping with the elm way I am going to put the call in a function
+					- ex. `getNicknames : Cmd Msg`
+								`getNicknames =`
+								`	Http.get`
+										`{ url = "http://blablabla" `
+											`, expect = Http.expectJson DataReceived nicknamesDecoder`
+											`}`
+							- Http. Get takes two parameters
+								1. the url address
+								2. what the expected return value is
+									- in my case I am expecting a Json return value hence the expectJson
+									- There are a whole list of expect.. that can be inputed into this spot.
+
+= Json Decode =
+	1. Import the Json.Decode Module `import Json.Decode exposing (Decoder, Error(..), list, string)`
+	2. create the Decoder
+		- ex. `nicknamesDecoder : Decoder (List String)`
+					`nicknamesDecoder =`	
+						`list string`
+			- the Decoder just returns the decoded info in whatever form the you are converting it to
+			- The Decoder return value corresponds to the the `DataReceived` *Msg* created earlier
+				- *DataReceived takes an argument of type Result Http.Error (List String)) which is what we are returning from nicknamesDecoder*
+				
+	3. pass the Msg's to the update method
+		- ex `update : Msg -> Model -> (Model, Cmd Msg)`
+				 `update msg model =`
+					`case msg of`
+						`SendHttpRequest ->`
+							`( model, getNicknames )` _Returns the model and calls getNicknames (tuple form)_
+						
+						`DataReceived (Ok nicknames) ->`
+							`( { model | nicknames = nicknames, errorMessage = Nothing }, Cmd.none )`
+							
+						`DataReceived (Err _) ->`
+							( model, Cmd.none ) _Presently I am not doing anything but returning the model if the DataReveived Fails_
+							
+		- In the above code I used two versions of DataReceived to cover both options that can happend from the call. It could also be written as another case statement. 
+
+= Handle Errors =
+	1. Http.Error structure looks like this:
+		- `type Error`
+				`= BadUrl String`
+				`| Timeout`
+				`| NewtworkError`
+				`| BadStatus Int`
+				`| BadBody String`
+				
+	2. With this in mind, a function is needed to return a particular message pertaining to the type of error.
+		- `buildErrorMessage : Http.Error -> String`
+			`buildErrorMessage httpError =`
+				`case httpError of`
+					`Http.BadUrl message ->`
+						`message` _Return the message_
+					
+					`Http.Timeout ->`
+						`Server is taking too long to respond, Please try again later`
+						
+					`Http.NetworkError ->`
+						`Unable to reach server`
+						
+					`Http.BadStatus statusCode ->`
+						`Request failed with status code: ++ String.fromInt statusCode`
+						
+					`Http.BadBody message ->`
+						`message`
+				
+	3. Last I need to update the *DateReceived (Err _)* accordingly
+		- `DataReveived (Err httpError) ->`
+				`( { model | errorMessage = Just (buildErrorMessage httpError) }, Cmd.none )`	
+	
+											
+											
